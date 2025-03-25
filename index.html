@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        video, canvas, img {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #333;
+            border-radius: 10px;
+        }
+        #label-container {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Teachable Machine Image Model</h2>
+    <div id="container">
+        <button onclick="init()">Start</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+        <button onclick="document.getElementById('fileInput').click()">Upload Image</button>
+        <div id="webcam-container"></div>
+        <img id="uploadedImage" style="display:none;">
+        <div id="label-container"></div>
+    </div>
+
+    <script>
+        const URL = "https://n3r4v.github.io/appdev-ai-agustin/my_model/"; // Update URL for GitHub Pages
+        let model, webcam, labelContainer, maxPredictions;
+        let useWebcam = true;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+            labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
+
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                useWebcam = true;
+                webcam = new tmImage.Webcam(300, 300, true);
+                await webcam.setup();
+                await webcam.play();
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                window.requestAnimationFrame(loop);
+            } else {
+                useWebcam = false;
+                alert("Webcam not detected. Please upload an image.");
+            }
+        }
+
+        async function loop() {
+            if (useWebcam) {
+                webcam.update();
+                await predict(webcam.canvas);
+                window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict(input) {
+            const prediction = await model.predict(input);
+            labelContainer.innerHTML = prediction.map(p => `<div>${p.className}: ${p.probability.toFixed(2)}</div>`).join('');
+        }
+
+        document.getElementById("fileInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById("uploadedImage");
+                    img.src = e.target.result;
+                    img.style.display = "block";
+                    predict(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>
